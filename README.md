@@ -43,3 +43,17 @@ should be published in a public repository.
 
 ## Author
 SQL learner | Literacy Facilitator | Education Data Analysis
+
+## Project Screenshots
+
+### 1. Tracking Percentage Report
+![Tracking Percentage Report](images/tracking_report.png)
+
+### 2. School Summary
+![School Summary](images/school_summary.png)
+
+### 3. Data Quality Check
+![Data Quality Check](images/data_quality_check.png)
+
+### 4. GitHub Repository
+![GitHub Repository](images/github_repository.png)
