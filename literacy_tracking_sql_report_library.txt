@@ -1,0 +1,474 @@
+
+/*
+PROJECT: Grade 2 Literacy Tracking Analysis
+DATABASE: Supabase / PostgreSQL
+TABLE: public.grade2_literacy_tracking_v2
+
+PURPOSE:
+School monitoring, student tracking, literacy reporting,
+data quality checks, and dashboard preparation.
+
+IMPORTANT:
+- These examples use SELECT queries.
+- Confirm your actual column names before running.
+- Do not upload confidential student data or API keys to public GitHub.
+*/
+
+
+-- =====================================================
+-- 01. VIEW ALL RECORDS
+-- =====================================================
+
+SELECT *
+FROM public.grade2_literacy_tracking_v2
+LIMIT 20;
+
+
+-- =====================================================
+-- 02. CHECK TOTAL RECORDS
+-- =====================================================
+
+SELECT COUNT(*) AS total_records
+FROM public.grade2_literacy_tracking_v2;
+
+
+-- =====================================================
+-- 03. CHECK TABLE COLUMNS
+-- =====================================================
+
+SELECT
+    column_name,
+    data_type
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'grade2_literacy_tracking_v2'
+ORDER BY ordinal_position;
+
+
+-- =====================================================
+-- 04. SCHOOL-WISE STUDENT REPORT
+-- =====================================================
+
+SELECT
+    school_name,
+    total_students,
+    students_tracked
+FROM public.grade2_literacy_tracking_v2
+ORDER BY school_name;
+
+
+-- =====================================================
+-- 05. TOTAL STUDENTS AND TRACKED STUDENTS
+-- Assumes one row per school.
+-- =====================================================
+
+SELECT
+    SUM(total_students) AS total_students,
+    SUM(students_tracked) AS total_tracked,
+    SUM(total_students) - SUM(students_tracked)
+        AS not_yet_tracked
+FROM public.grade2_literacy_tracking_v2;
+
+
+-- =====================================================
+-- 06. SCHOOL-WISE TRACKING PERCENTAGE
+-- =====================================================
+
+SELECT
+    school_name,
+    total_students,
+    students_tracked,
+    ROUND(
+        students_tracked * 100.0
+        / NULLIF(total_students, 0),
+        2
+    ) AS tracking_percentage
+FROM public.grade2_literacy_tracking_v2
+ORDER BY tracking_percentage ASC NULLS FIRST;
+
+
+-- =====================================================
+-- 07. OVERALL TRACKING PERCENTAGE
+-- Assumes one row per school.
+-- =====================================================
+
+SELECT
+    SUM(total_students) AS total_students,
+    SUM(students_tracked) AS total_tracked,
+    ROUND(
+        SUM(students_tracked) * 100.0
+        / NULLIF(SUM(total_students), 0),
+        2
+    ) AS overall_tracking_percentage
+FROM public.grade2_literacy_tracking_v2;
+
+
+-- =====================================================
+-- 08. SCHOOLS BELOW 75% TRACKING
+-- Change the target if your programme uses another value.
+-- =====================================================
+
+SELECT
+    school_name,
+    total_students,
+    students_tracked,
+    ROUND(
+        students_tracked * 100.0
+        / NULLIF(total_students, 0),
+        2
+    ) AS tracking_percentage
+FROM public.grade2_literacy_tracking_v2
+WHERE students_tracked * 100.0
+      / NULLIF(total_students, 0) < 75
+ORDER BY tracking_percentage ASC NULLS FIRST;
+
+
+-- =====================================================
+-- 09. SCHOOLS WITH AT LEAST 90% TRACKING
+-- =====================================================
+
+SELECT
+    school_name,
+    total_students,
+    students_tracked,
+    ROUND(
+        students_tracked * 100.0
+        / NULLIF(total_students, 0),
+        2
+    ) AS tracking_percentage
+FROM public.grade2_literacy_tracking_v2
+WHERE students_tracked * 100.0
+      / NULLIF(total_students, 0) >= 90
+ORDER BY tracking_percentage DESC;
+
+
+-- =====================================================
+-- 10. TOP 10 SCHOOLS BY TRACKED STUDENTS
+-- =====================================================
+
+SELECT
+    school_name,
+    students_tracked
+FROM public.grade2_literacy_tracking_v2
+ORDER BY students_tracked DESC NULLS LAST
+LIMIT 10;
+
+
+-- =====================================================
+-- 11. BOTTOM 10 SCHOOLS BY TRACKED STUDENTS
+-- =====================================================
+
+SELECT
+    school_name,
+    students_tracked
+FROM public.grade2_literacy_tracking_v2
+ORDER BY students_tracked ASC NULLS FIRST
+LIMIT 10;
+
+
+-- =====================================================
+-- 12. RECORDS WHERE COMPREHENSION_0 = 0
+-- Verify the meaning of this column first.
+-- =====================================================
+
+SELECT *
+FROM public.grade2_literacy_tracking_v2
+WHERE comprehension_0 = 0;
+
+
+-- =====================================================
+-- 13. RECORDS WHERE COMPREHENSION_0 < 1
+-- =====================================================
+
+SELECT *
+FROM public.grade2_literacy_tracking_v2
+WHERE comprehension_0 < 1;
+
+
+-- =====================================================
+-- 14. COUNT RECORDS WITH ZERO COMPREHENSION
+-- =====================================================
+
+SELECT
+    COUNT(*) AS zero_comprehension_records
+FROM public.grade2_literacy_tracking_v2
+WHERE comprehension_0 = 0;
+
+
+-- =====================================================
+-- 15. COMPREHENSION VALUE DISTRIBUTION
+-- =====================================================
+
+SELECT
+    comprehension_0,
+    COUNT(*) AS record_count
+FROM public.grade2_literacy_tracking_v2
+GROUP BY comprehension_0
+ORDER BY comprehension_0 NULLS FIRST;
+
+
+-- =====================================================
+-- 16. MISSING DATA CHECK
+-- =====================================================
+
+SELECT
+    COUNT(*) AS total_rows,
+    COUNT(*) FILTER (
+        WHERE school_name IS NULL
+    ) AS missing_school_name,
+    COUNT(*) FILTER (
+        WHERE total_students IS NULL
+    ) AS missing_total_students,
+    COUNT(*) FILTER (
+        WHERE students_tracked IS NULL
+    ) AS missing_students_tracked,
+    COUNT(*) FILTER (
+        WHERE comprehension_0 IS NULL
+    ) AS missing_comprehension
+FROM public.grade2_literacy_tracking_v2;
+
+
+-- =====================================================
+-- 17. CHECK DUPLICATE SCHOOL NAMES
+-- Multiple rows may be valid in some datasets.
+-- =====================================================
+
+SELECT
+    school_name,
+    COUNT(*) AS record_count
+FROM public.grade2_literacy_tracking_v2
+GROUP BY school_name
+HAVING COUNT(*) > 1
+ORDER BY record_count DESC;
+
+
+-- =====================================================
+-- 18. CHECK POSSIBLE INVALID COUNTS
+-- =====================================================
+
+SELECT *
+FROM public.grade2_literacy_tracking_v2
+WHERE total_students < 0
+   OR students_tracked < 0
+   OR students_tracked > total_students;
+
+
+-- =====================================================
+-- 19. SUMMARY STATISTICS
+-- =====================================================
+
+SELECT
+    COUNT(*) AS total_records,
+    MIN(total_students) AS minimum_students,
+    MAX(total_students) AS maximum_students,
+    ROUND(AVG(total_students), 2) AS average_students,
+    MIN(students_tracked) AS minimum_tracked,
+    MAX(students_tracked) AS maximum_tracked,
+    ROUND(AVG(students_tracked), 2) AS average_tracked
+FROM public.grade2_literacy_tracking_v2;
+
+
+-- =====================================================
+-- 20. TRACKING STATUS REPORT
+-- Example thresholds only. Confirm programme standards.
+-- =====================================================
+
+SELECT
+    school_name,
+    total_students,
+    students_tracked,
+    ROUND(
+        students_tracked * 100.0
+        / NULLIF(total_students, 0),
+        2
+    ) AS tracking_percentage,
+    CASE
+        WHEN total_students IS NULL
+             OR total_students = 0
+            THEN 'Check total students'
+        WHEN students_tracked IS NULL
+            THEN 'Missing tracking count'
+        WHEN students_tracked * 100.0
+             / NULLIF(total_students, 0) < 50
+            THEN 'Priority support'
+        WHEN students_tracked * 100.0
+             / NULLIF(total_students, 0) < 75
+            THEN 'Needs follow-up'
+        WHEN students_tracked < total_students
+            THEN 'In progress'
+        ELSE 'Fully tracked'
+    END AS tracking_status
+FROM public.grade2_literacy_tracking_v2
+ORDER BY tracking_percentage ASC NULLS FIRST;
+
+
+-- =====================================================
+-- 21. RANK SCHOOLS BY TRACKING PERCENTAGE
+-- =====================================================
+
+SELECT
+    school_name,
+    ROUND(
+        students_tracked * 100.0
+        / NULLIF(total_students, 0),
+        2
+    ) AS tracking_percentage,
+    RANK() OVER (
+        ORDER BY
+            students_tracked * 100.0
+            / NULLIF(total_students, 0) DESC NULLS LAST
+    ) AS tracking_rank
+FROM public.grade2_literacy_tracking_v2
+ORDER BY tracking_rank NULLS LAST;
+
+
+-- =====================================================
+-- 22. FILTER USING AND
+-- More than 50 students and tracking below 75%.
+-- =====================================================
+
+SELECT
+    school_name,
+    total_students,
+    students_tracked
+FROM public.grade2_literacy_tracking_v2
+WHERE total_students > 50
+  AND students_tracked * 100.0
+      / NULLIF(total_students, 0) < 75
+ORDER BY school_name;
+
+
+-- =====================================================
+-- 23. FILTER USING OR
+-- =====================================================
+
+SELECT *
+FROM public.grade2_literacy_tracking_v2
+WHERE comprehension_0 = 0
+   OR students_tracked IS NULL;
+
+
+-- =====================================================
+-- 24. SEARCH SCHOOL NAME
+-- Example search: names containing "Govt".
+-- =====================================================
+
+SELECT *
+FROM public.grade2_literacy_tracking_v2
+WHERE school_name ILIKE '%Govt%'
+ORDER BY school_name;
+
+
+-- =====================================================
+-- 25. GROUP SUMMARY BY COMPREHENSION VALUE
+-- =====================================================
+
+SELECT
+    comprehension_0,
+    COUNT(*) AS record_count,
+    ROUND(AVG(total_students), 2) AS average_total_students,
+    ROUND(AVG(students_tracked), 2) AS average_tracked
+FROM public.grade2_literacy_tracking_v2
+GROUP BY comprehension_0
+ORDER BY comprehension_0 NULLS FIRST;
+
+
+-- =====================================================
+-- 26. CTE-BASED SCHOOL REPORT
+-- CTE means Common Table Expression.
+-- =====================================================
+
+WITH school_report AS (
+    SELECT
+        school_name,
+        total_students,
+        students_tracked,
+        total_students - students_tracked AS not_yet_tracked,
+        ROUND(
+            students_tracked * 100.0
+            / NULLIF(total_students, 0),
+            2
+        ) AS tracking_percentage
+    FROM public.grade2_literacy_tracking_v2
+)
+SELECT *
+FROM school_report
+ORDER BY tracking_percentage ASC NULLS FIRST;
+
+
+-- =====================================================
+-- 27. DASHBOARD KPI SUMMARY
+-- Assumes one row per school.
+-- =====================================================
+
+SELECT
+    COUNT(*) AS number_of_rows,
+    COUNT(DISTINCT school_name) AS distinct_schools,
+    SUM(total_students) AS total_students,
+    SUM(students_tracked) AS total_tracked,
+    SUM(total_students) - SUM(students_tracked)
+        AS not_yet_tracked,
+    ROUND(
+        SUM(students_tracked) * 100.0
+        / NULLIF(SUM(total_students), 0),
+        2
+    ) AS overall_tracking_percentage,
+    COUNT(*) FILTER (
+        WHERE students_tracked * 100.0
+              / NULLIF(total_students, 0) < 75
+    ) AS rows_below_75_percent
+FROM public.grade2_literacy_tracking_v2;
+
+
+/*
+=========================================================
+28. READING SKILL REPORT TEMPLATE
+=========================================================
+
+First inspect the table columns using query 03.
+Replace actual_skill_column with a real numeric column name.
+Do not run this template as written.
+
+SELECT
+    school_name,
+    COUNT(*) AS record_count,
+    ROUND(AVG(actual_skill_column), 2) AS average_skill_value,
+    COUNT(*) FILTER (
+        WHERE actual_skill_column = 0
+    ) AS zero_value_count
+FROM public.grade2_literacy_tracking_v2
+GROUP BY school_name
+ORDER BY average_skill_value ASC NULLS FIRST;
+
+
+/*
+=========================================================
+29. JOIN TEMPLATE
+=========================================================
+
+Use only after confirming the second table and common key.
+This is a template, not a ready-to-run query.
+
+SELECT
+    a.school_name,
+    a.total_students,
+    b.other_measure
+FROM public.grade2_literacy_tracking_v2 AS a
+INNER JOIN public.another_table AS b
+    ON a.school_name = b.school_name;
+
+
+/*
+=========================================================
+30. DATE-WISE REPORT TEMPLATE
+=========================================================
+
+Use only after confirming the real date column name.
+
+SELECT
+    actual_date_column,
+    COUNT(*) AS record_count
+FROM public.grade2_literacy_tracking_v2
+GROUP BY actual_date_column
+ORDER BY actual_date_column;
+*/
